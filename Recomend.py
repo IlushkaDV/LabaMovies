@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import numpy as np
 from sklearn.neural_network import BernoulliRBM
@@ -6,11 +5,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-ratings_path = os.path.join("ratings_small.csv")
-movies_path = os.path.join("movies_metadata.csv")
-
-ratings = pd.read_csv(ratings_path)
-movies = pd.read_csv(movies_path, low_memory=False)
+ratings = pd.read_csv("ratings_small.csv")
+movies = pd.read_csv("movies_metadata.csv", low_memory=False)
 
 user_movie_matrix = ratings.pivot(index='userId', columns='movieId', values='rating').fillna(0)
 X = user_movie_matrix.values
@@ -42,16 +38,26 @@ while True:
         user_reconstructed = reconstructed[user_index]
 
         unseen = np.where(user_ratings == 0)[0]
-        recommended_indices = unseen[np.argsort(user_reconstructed[unseen])[::-1][:10]]
-        recommended_movie_ids = movie_ids[recommended_indices].astype(str)
+        recommended_indices = unseen[np.argsort(user_reconstructed[unseen])[::-1]]  # Сортировка по убыванию
 
         movies_clean = movies.dropna(subset=['id', 'title'])
         movies_clean['id'] = movies_clean['id'].astype(str)
-        recommended_titles = movies_clean[movies_clean['id'].isin(recommended_movie_ids)]['title'].unique()
+
+        recommended_titles = []
+        for movie_idx in recommended_indices:
+            movie_id = str(movie_ids[movie_idx])
+            movie_title = movies_clean[movies_clean['id'] == movie_id]['title']
+            if not movie_title.empty:
+                recommended_titles.append(movie_title.values[0])
+            if len(recommended_titles) >= 5:  # Останавливаемся, когда набрали 5 фильмов
+                break
 
         print(f"\nРекомендованные фильмы для пользователя {user_id}:\n")
-        for i, title in enumerate(recommended_titles, 1):
-            print(f"{i}. {title}")
+        if recommended_titles:
+            for i, title in enumerate(recommended_titles, 1):
+                print(f"{i}. {title}")
+        else:
+            print("Не удалось найти рекомендации. Возможно, данные о фильмах отсутствуют.")
 
     except ValueError:
         print("Ошибка: введите корректный числовой ID пользователя.")
