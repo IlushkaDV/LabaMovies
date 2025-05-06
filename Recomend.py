@@ -18,24 +18,40 @@ movie_ids = user_movie_matrix.columns
 
 X_binary = (X > 0).astype(float)
 
+print("Обучение RBM модели...")
 rbm = BernoulliRBM(n_components=100, learning_rate=0.01, n_iter=20, verbose=True, random_state=42)
 rbm.fit(X_binary)
 
 reconstructed = rbm.gibbs(X_binary)
 
-user_id = 10
-user_index = user_id - 1
-user_ratings = X[user_index]
-user_reconstructed = reconstructed[user_index]
+while True:
+    print("\nДоступные ID пользователей:", list(user_movie_matrix.index))
+    user_input = input("Введите ID пользователя для рекомендаций (или 'q' для выхода): ")
 
-unseen = np.where(user_ratings == 0)[0]
-recommended_indices = unseen[np.argsort(user_reconstructed[unseen])[::-1][:10]]
-recommended_movie_ids = movie_ids[recommended_indices].astype(str)
+    if user_input.lower() == 'q':
+        break
 
-movies = movies.dropna(subset=['id', 'title'])
-movies['id'] = movies['id'].astype(str)
-recommended_titles = movies[movies['id'].isin(recommended_movie_ids)]['title'].unique()
+    try:
+        user_id = int(user_input)
+        if user_id not in user_movie_matrix.index:
+            print(f"Ошибка: пользователь с ID {user_id} не найден.")
+            continue
 
-print(f"\n Рекомендованные фильмы для пользователя {user_id}:\n")
-for i, title in enumerate(recommended_titles, 1):
-    print(f"{i}. {title}")
+        user_index = np.where(user_movie_matrix.index == user_id)[0][0]
+        user_ratings = X[user_index]
+        user_reconstructed = reconstructed[user_index]
+
+        unseen = np.where(user_ratings == 0)[0]
+        recommended_indices = unseen[np.argsort(user_reconstructed[unseen])[::-1][:10]]
+        recommended_movie_ids = movie_ids[recommended_indices].astype(str)
+
+        movies_clean = movies.dropna(subset=['id', 'title'])
+        movies_clean['id'] = movies_clean['id'].astype(str)
+        recommended_titles = movies_clean[movies_clean['id'].isin(recommended_movie_ids)]['title'].unique()
+
+        print(f"\nРекомендованные фильмы для пользователя {user_id}:\n")
+        for i, title in enumerate(recommended_titles, 1):
+            print(f"{i}. {title}")
+
+    except ValueError:
+        print("Ошибка: введите корректный числовой ID пользователя.")
